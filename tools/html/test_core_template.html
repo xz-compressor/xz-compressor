@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>HTML核心测试</title></head>
+<body>
+<pre id="out">运行中…</pre>
+<script type="module">
+/*__SEVENZIP_JS__*/
+const WASM_B64="__WASM_B64__";
+function b64ToBytes(b){const s=atob(b);const a=new Uint8Array(s.length);for(let i=0;i<s.length;i++)a[i]=s.charCodeAt(i);return a;}
+const out=document.getElementById("out");
+const lines=[];
+function log(s){lines.push(s);out.textContent=lines.join("\n");}
+let pass=0,fail=0;
+function check(name,cond){ if(cond){pass++;log("[PASS] "+name);} else {fail++;log("[FAIL] "+name);} }
+
+(async function(){
+  try{
+    const cap=[];
+    const eng=await window.SevenZip({wasmBinary:b64ToBytes(WASM_B64),noInitialRun:true,
+      print:x=>cap.push("OUT "+x), printErr:x=>cap.push("ERR "+x)});
+    const FS=eng.FS;
+    // 准备测试数据：重复文本（可压缩）+ 二进制
+    let txt="";
+    for(let i=0;i<2000;i++){ txt += "XZ压缩测试 hello world 0123456789 "+i+"\n"; }
+    const data=new TextEncoder().encode(txt);
+    FS.writeFile("/a.txt",data);
+
+    // 1. xz 压缩
+    let rc=eng.callMain(["a","-txz","-mx=9","/a.xz","/a.txt"]);
+    let xzOk=false, xzSize=0;
+    try{ xzSize=FS.stat("/a.xz").size; xzOk=xzSize>0 && xzSize<data.length; }catch(e){}
+    check("xz 压缩且变小 ("+xzSize+" / "+data.length+")", rc===0 && xzOk);
+    // 验证 xz 魔数 FD 37 7A 58 5A 00
+    let magic=false;
+    try{ const m=FS.readFile("/a.xz"); magic=(m[0]===0xFD&&m[1]===0x37&&m[2]===0x7A&&m[3]===0x58&&m[4]===0x5A&&m[5]===0x00); }catch(e){}
+    check("xz 魔数正确 (真xz非套皮)", magic);
+
+    // 2. xz 解压（xz 不保留原名，输出为去掉 .xz 的 "a"）
+    cap.length=0;
+    rc=eng.callMain(["x","-y","-o/x1","/a.xz"]);
+    let back=FS.readFile("/x1/a");
+    check("xz 解压往返一致 (大文件/mx9)", rc===0 && back.length===data.length && back.every((v,i)=>v===data[i]));
+
+    // 3. 7z 压缩+解压
+    rc=eng.callMain(["a","-t7z","-mx=6","/a.7z","/a.txt"]);
+    let sz7=0; try{sz7=FS.stat("/a.7z").size;}catch(e){}
+    check("7z 压缩 ("+sz7+")", rc===0 && sz7>0);
+    FS.mkdir("/x2");
+    rc=eng.callMain(["x","-y","-o/x2","/a.7z"]);
+    back=FS.readFile("/x2/a.txt");
+    check("7z 解压往返一致", rc===0 && back.every((v,i)=>v===data[i]));
+
+    // 4. zip 压缩+解压
+    rc=eng.callMain(["a","-tzip","-mx=9","/a.zip","/a.txt"]);
+    let szz=0; try{szz=FS.stat("/a.zip").size;}catch(e){}
+    check("zip 压缩 ("+szz+")", rc===0 && szz>0);
+    FS.mkdir("/x3");
+    rc=eng.callMain(["x","-y","-o/x3","/a.zip"]);
+    back=FS.readFile("/x3/a.txt");
+    check("zip 解压往返一致", rc===0 && back.every((v,i)=>v===data[i]));
+
+    // 5. 7z 加密压缩 + 密码解压
+    rc=eng.callMain(["a","-t7z","-mx=6","-psecret123","-mhe=on","/e.7z","/a.txt"]);
+    let eSz=0; try{eSz=FS.stat("/e.7z").size;}catch(e){}
+    check("7z 加密压缩 ("+eSz+")", rc===0 && eSz>0);
+    // 错误密码应失败（callMain 失败时抛异常，用 try/catch 视为失败）
+    let rcBad=0, badThrew=false;
+    try{ rcBad=eng.callMain(["x","-y","-pwrongpass","-o/x4","/e.7z"]); }catch(e){ badThrew=true; }
+    check("7z 加密包错误密码解压失败", badThrew || rcBad!==0);
+    // 正确密码解压
+    let rcGood=eng.callMain(["x","-y","-psecret123","-o/x5","/e.7z"]);
+    back=FS.readFile("/x5/a.txt");
+    check("7z 加密包正确密码解压一致", rcGood===0 && back.every((v,i)=>v===data[i]));
+
+    // 6. gzip 压缩
+    rc=eng.callMain(["a","-tgzip","-mx=9","/a.gz","/a.txt"]);
+    let gz=0; try{gz=FS.stat("/a.gz").size;}catch(e){}
+    check("gzip 压缩 ("+gz+")", rc===0 && gz>0);
+
+    // 7. 多文件 zip（文件夹层级）
+    FS.writeFile("/b.txt",new TextEncoder().encode("第二个文件内容 BBB"));
+    FS.mkdir("/sub"); FS.writeFile("/sub/c.txt",new TextEncoder().encode("第三个文件 CCC"));
+    rc=eng.callMain(["a","-tzip","/mf.zip","/a.txt","/b.txt","/sub/c.txt"]);
+    check("多文件 zip 压缩", rc===0);
+    rc=eng.callMain(["x","-y","-o/x6","/mf.zip"]);
+    let n=0; try{ n=FS.readdir("/x6").filter(x=>x!=="."&&x!=="..").length; }catch(e){}
+    check("多文件 zip 解压出3项", n>=3);
+
+  }catch(e){
+    log("异常类型: "+(e?.constructor?.name));
+    log("name="+(e?.name)+" message="+(e?.message)+" status="+(e?.status));
+    try{ log("json="+JSON.stringify(e)); }catch(x){ log("json=<不可序列化>"); }
+    log("stack="+(e?.stack));
+    fail++;
+  }
+  log("\n结果: 通过 "+pass+" 项, 失败 "+fail+" 项");
+  document.title = fail===0 ? "TEST_ALL_PASS" : ("TEST_FAIL_"+fail);
+  if(fail===0){ out.style.color="green"; } else { out.style.color="red"; }
+})();
+</script>
+</body></html>

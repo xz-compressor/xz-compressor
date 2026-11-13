@@ -1,0 +1,5 @@
+param($src, $pkg)
+$t = [IO.File]::ReadAllText($src)
+$t = $t.Replace('package com.xzport;', 'package ' + $pkg + ';')
+$t = $t.Replace('package com.xzfull;', 'package ' + $pkg + ';')
+[IO.File]::WriteAllText($src, $t, (New-Object Text.UTF8Encoding $false))

@@ -1,0 +1,40 @@
+# ---- 签名密钥（绝不入库）----
+*.keystore
+*.jks
+*.key
+*.pem
+
+# ---- 顶层发行物（源码走仓库，安装包走 Release）----
+/XZ压缩工具_安装器.exe
+/XZ完整版.exe
+/XZ完整压缩.apk
+/XZ压缩工具_HTML版.html
+
+# ---- 编译产物 ----
+tools/XZGui.exe
+
+# ---- 旧构建残留目录 ----
+yzc/
+
+# ---- HTML 测试产物（保留 *_template.html 源码模板）----
+tools/html/test_core.html
+tools/html/test_e2e.html
+tools/html/test_extract.html
+tools/html/test_sfx.html
+tools/html/test_sfx_standalone.html
+
+# ---- 运行时业务数据（首次运行自动生成，勿上传）----
+server/data/feedback.log
+server/data/devices.log
+server/data/announcement.json
+server/data/polls.json
+
+# ---- 日志 / 缓存 / 临时文件 ----
+*.log
+!server/data/.gitkeep
+__pycache__/
+*.pyc
+*.tmp
+*.bak
+Thumbs.db
+Desktop.ini

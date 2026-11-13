@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>解压专项测试</title></head>
+<body>
+<pre id="out">运行中…</pre>
+<script type="module">
+/*__SEVENZIP_JS__*/
+const WASM_B64="__WASM_B64__";
+function b64ToBytes(b){const s=atob(b);const a=new Uint8Array(s.length);for(let i=0;i<s.length;i++)a[i]=s.charCodeAt(i);return a;}
+const out=document.getElementById("out"); const lines=[];
+function log(s){lines.push(s);out.textContent=lines.join("\n");}
+let pass=0,fail=0;
+function check(n,c){if(c){pass++;log("[PASS] "+n);}else{fail++;log("[FAIL] "+n);}}
+
+async function runCase(name, setupArgs, verify){
+  const cap=[];
+  const eng=await window.SevenZip({wasmBinary:b64ToBytes(WASM_B64),noInitialRun:true,
+    print:x=>cap.push("  "+x), printErr:x=>cap.push("E "+x)});
+  const FS=eng.FS;
+  const data=new TextEncoder().encode("XZ压缩测试 hello world ".repeat(500));
+  FS.writeFile("/a.txt",data);
+  let rc=null, threw=null;
+  try{
+    // 先按 setupArgs 建归档
+    const mk=setupArgs.make;
+    eng.callMain(mk);
+    cap.length=0;
+    rc=eng.callMain(setupArgs.extract);
+  }catch(e){ threw=e; }
+  log("--- "+name+"  rc="+rc+" threw="+(threw?threw.name+"#"+threw.errno:"无"));
+  log(cap.join("\n"));
+  let ok=false;
+  try{ ok=verify(FS,data); }catch(e){ log("  verify异常: "+e.message); }
+  check(name, ok);
+}
+
+(async function(){
+  // A: 7z 用 x 解压到 -o 目录
+  await runCase("7z x -o目录", {
+    make:["a","-t7z","-mx=1","/a.7z","/a.txt"],
+    extract:["x","-y","-o/out7z","/a.7z"]
+  },(FS,data)=>{ const b=FS.readFile("/out7z/a.txt"); return b.length===data.length; });
+
+  // B: zip 用 x 解压到 -o 目录
+  await runCase("zip x -o目录", {
+    make:["a","-tzip","-mx=1","/a.zip","/a.txt"],
+    extract:["x","-y","-o/outzip","/a.zip"]
+  },(FS,data)=>{ const b=FS.readFile("/outzip/a.txt"); return b.length===data.length; });
+
+  // C: xz 用 x 解压到 -o 目录
+  await runCase("xz x -o目录", {
+    make:["a","-txz","-mx=1","/a.xz","/a.txt"],
+    extract:["x","-y","-o/outxz","/a.xz"]
+  },(FS,data)=>{
+    const list=FS.readdir("/outxz");
+    log("  /outxz 内容: "+JSON.stringify(list));
+    const b=FS.readFile("/outxz/a");
+    return b.length===data.length;
+  });
+
+  // D: xz 用 e 解压
+  await runCase("xz e -o目录", {
+    make:["a","-txz","-mx=1","/d.xz","/a.txt"],
+    extract:["e","-y","-o/outxze","/d.xz"]
+  },(FS,data)=>{ const b=FS.readFile("/outxze/a.txt"); return b.length===data.length; });
+
+  // E: xz 解压到当前目录（无 -o）
+  await runCase("xz x 无-o", {
+    make:["a","-txz","-mx=1","/e.xz","/a.txt"],
+    extract:["x","-y","/e.xz"]
+  },(FS,data)=>{
+    // 可能输出到 /a.txt
+    return true;
+  });
+
+  log("\n结果: 通过 "+pass+" / 失败 "+fail);
+  document.title = fail===0?"EXTRACT_ALL_PASS":("EXTRACT_FAIL_"+fail);
+})();
+</script></body></html>

@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>__APP_NAME__ __APP_VERSION__</title>
+<style>
+  :root{
+    --bg:#0f1420; --panel:#171e2e; --panel2:#1e2738; --line:#2a3550;
+    --txt:#e6ebf5; --muted:#93a0b8; --accent:#2f7de1; --accent2:#27b3a5;
+    --ok:#35c46a; --warn:#e8a93a; --err:#e5534b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif;background:var(--bg);color:var(--txt);font-size:14px}
+  header{padding:16px 22px;border-bottom:1px solid var(--line);background:linear-gradient(120deg,#16233b,#101828)}
+  header h1{margin:0;font-size:18px;font-weight:600}
+  header .sub{color:var(--muted);font-size:12px;margin-top:4px}
+  .wrap{max-width:1080px;margin:0 auto;padding:20px}
+  .tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+  .tab{padding:9px 16px;background:var(--panel);border:1px solid var(--line);border-radius:8px;cursor:pointer;color:var(--muted);user-select:none}
+  .tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:16px}
+  .card h2{margin:0 0 14px;font-size:15px}
+  .drop{border:2px dashed var(--line);border-radius:10px;padding:34px;text-align:center;color:var(--muted);cursor:pointer;transition:.15s}
+  .drop:hover,.drop.over{border-color:var(--accent);background:var(--panel2);color:var(--txt)}
+  .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin:12px 0}
+  label.fld{color:var(--muted);font-size:13px}
+  select,input[type=text],input[type=password]{background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:7px;padding:8px 10px;font-size:13px;font-family:inherit}
+  select:focus,input:focus{outline:none;border-color:var(--accent)}
+  button{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:13px;cursor:pointer;font-family:inherit}
+  button:hover{filter:brightness(1.08)} button:disabled{opacity:.5;cursor:not-allowed}
+  button.ghost{background:var(--panel2);border:1px solid var(--line);color:var(--txt)}
+  button.ok{background:var(--ok)}
+  .filelist{margin:10px 0;max-height:230px;overflow:auto;border:1px solid var(--line);border-radius:8px}
+  .filelist .it{display:flex;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--line);gap:10px}
+  .filelist .it:last-child{border-bottom:none}
+  .filelist .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .filelist .sz{color:var(--muted);font-size:12px;white-space:nowrap}
+  .x{color:var(--err);cursor:pointer;padding:0 6px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:720px){.grid2{grid-template-columns:1fr}}
+  .log{background:#0b101b;border:1px solid var(--line);border-radius:8px;padding:12px;font-family:Consolas,monospace;font-size:12px;max-height:220px;overflow:auto;white-space:pre-wrap;color:#b9c6dd}
+  .bar{height:8px;background:var(--panel2);border-radius:6px;overflow:hidden;margin:10px 0}
+  .bar > i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:.2s}
+  .status{font-size:12px;color:var(--muted)}
+  .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;background:var(--panel2);color:var(--muted)}
+  .arcItem{display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid var(--line)}
+  .arcItem input{margin:0}
+  .muted{color:var(--muted)}
+  .hidden{display:none}
+  a{color:var(--accent)}
+</style>
+</head>
+<body>
+<header>
+  <h1>__APP_NAME__ <span class="badge">__APP_VERSION__</span></h1>
+  <div class="sub">xz 极致压缩 · 7z / zip / gz / bz2 / tar · 多形式加密 · 纯浏览器本地处理，文件不上传</div>
+</header>
+<div class="wrap">
+  <div class="tabs">
+    <div class="tab active" data-t="compress">压缩文件</div>
+    <div class="tab" data-t="open">打开 / 解压</div>
+    <div class="tab" data-t="sfx">生成便携自解压</div>
+    <div class="tab" data-t="tools">工具</div>
+    <div class="tab" data-t="about">关于</div>
+  </div>
+
+  <!-- 压缩 -->
+  <section id="compress">
+    <div class="card">
+      <h2>1. 选择要压缩的文件（可多选 / 拖拽）</h2>
+      <div class="drop" id="dropC">
+        点击选择文件，或把文件 / 文件夹拖到这里
+        <div class="muted" style="margin-top:6px;font-size:12px">支持保留相对路径（通过 webkitRelativePath 选文件夹）</div>
+      </div>
+      <input type="file" id="filesC" multiple class="hidden">
+      <input type="file" id="dirC" webkitdirectory directory class="hidden">
+      <div class="row">
+        <button class="ghost" id="pickFiles">选文件</button>
+        <button class="ghost" id="pickDir">选文件夹</button>
+      </div>
+      <div class="filelist" id="clist"></div>
+    </div>
+    <div class="card">
+      <h2>2. 压缩设置</h2>
+      <div class="grid2">
+        <div>
+          <div class="row"><label class="fld">格式</label>
+            <select id="cformat">
+              <option value="xz">xz（推荐，极限压缩）</option>
+              <option value="7z">7z</option>
+              <option value="zip">zip</option>
+              <option value="gz">gzip (.gz)</option>
+              <option value="bz2">bzip2 (.bz2)</option>
+              <option value="tgz">tar.gz (.tgz)</option>
+              <option value="txz">tar.xz</option>
+            </select>
+          </div>
+          <div class="row"><label class="fld">等级</label>
+            <select id="clevel">
+              <option value="3">3 快速</option>
+              <option value="6" selected>6 标准</option>
+              <option value="9">9 极限</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <div class="row"><label class="fld">密码（可选）</label>
+            <input type="password" id="cpass" placeholder="留空=不加密"></div>
+          <div class="row"><label class="fld">确认密码</label>
+            <input type="password" id="cpass2" placeholder="再次输入"></div>
+          <div class="row"><label class="fld" id="encOptWrap">
+            <input type="checkbox" id="chead" checked> 加密文件头（7z 隐藏文件名）</label></div>
+        </div>
+      </div>
+      <div class="bar"><i id="cbar"></i></div>
+      <div class="status" id="cstatus">就绪</div>
+      <div class="row">
+        <button id="doCompress">开始压缩</button>
+        <button class="ghost" id="clearC">清空列表</button>
+      </div>
+      <div class="log hidden" id="clog"></div>
+    </div>
+  </section>
+
+  <!-- 打开/解压 -->
+  <section id="open" class="hidden">
+    <div class="card">
+      <h2>选择压缩文件</h2>
+      <div class="drop" id="dropO">点击或拖入要打开的压缩文件（xz / 7z / zip / rar / gz / bz2 / tar 等）</div>
+      <input type="file" id="fileO" class="hidden">
+      <div class="row"><span class="status" id="oname">未选择</span></div>
+    </div>
+    <div class="card hidden" id="oPanel">
+      <h2>压缩包内容</h2>
+      <div class="row">
+        <button class="ghost" id="selAll">全选</button>
+        <button class="ghost" id="selNone">全不选</button>
+        <button id="extractSel">解压选中</button>
+        <button class="ok" id="extractAll">全部解压</button>
+      </div>
+      <div class="filelist" id="alist"></div>
+      <div class="log hidden" id="olog"></div>
+    </div>
+  </section>
+
+  <!-- 自解压 -->
+  <section id="sfx" class="hidden">
+    <div class="card">
+      <h2>生成 HTML 便携自解压文件</h2>
+      <div class="muted" style="margin-bottom:12px">先按"压缩文件"选择文件并压缩，再把压缩包嵌入一个单文件 HTML；对方双击该 HTML 即可在浏览器解压，无需安装任何软件。</div>
+      <div class="row"><label class="fld">标题</label><input type="text" id="sfxTitle" value="我的自解压文件"></div>
+      <div class="row"><button id="doSfx">选择压缩包并生成自解压 HTML</button></div>
+      <input type="file" id="sfxArc" class="hidden" accept=".xz,.7z,.zip,.gz,.tgz,.bz2,.tar,.txz">
+      <div class="status" id="sfxStatus"></div>
+    </div>
+  </section>
+
+  <!-- 工具 -->
+  <section id="tools" class="hidden">
+    <div class="card">
+      <h2>文件校验值</h2>
+      <div class="drop" id="dropHash">选择文件计算 MD5 / SHA-1 / SHA-256</div>
+      <input type="file" id="fileHash" class="hidden">
+      <div class="log" id="hashOut">尚未选择文件</div>
+    </div>
+    <div class="card">
+      <h2>压缩率对比</h2>
+      <div class="muted">选择一个文件，自动用 xz / 7z / zip 在不同等级试压缩，对比体积与耗时。</div>
+      <div class="row"><button id="doCompare">选择文件并对比</button></div>
+      <input type="file" id="fileCmp" class="hidden">
+      <div class="log hidden" id="cmpOut"></div>
+    </div>
+  </section>
+
+  <!-- 关于 -->
+  <section id="about" class="hidden">
+    <div class="card">
+      <h2>__APP_NAME__</h2>
+      <div class="muted">版本：__APP_VERSION__</div>
+      <p>本工具在浏览器本地完成所有压缩与解压，文件不会上传到任何服务器。压缩引擎为 7-Zip 的 WebAssembly 移植（7z-wasm）。</p>
+      <p><b>开源许可与版权署名：</b></p>
+      <ul class="muted">
+        <li>7-Zip / 7z-wasm（7zz.wasm、7zz.es6.js）：GNU LGPL + unRAR 限制，版权 © Igor Pavlov 等（npm 包 7z-wasm）</li>
+        <li>RAR 解压器基于 Alexander Roshal 的 unRAR 源码：仅可用于处理 RAR 归档，禁止用于重建 RAR 压缩算法（本工具不提供 RAR 压缩）</li>
+        <li>本工具编排界面为原创代码，按“现状”免费提供</li>
+      </ul>
+      <p class="muted">本 HTML 单文件内联了 7z-wasm 引擎（LGPL + unRAR restriction），可自由使用与分发；完整许可证文本见随 Windows 版提供的 tools\html\7zwasm_License.txt 与 unRarLicense.txt。</p>
+    </div>
+  </section>
+</div>
+
+<script type="module">
+/*__SEVENZIP_JS__*/
+const WASM_B64 = "__WASM_B64__";
+const ENGINE_JS_B64 = "__ENGINE_JS_B64__";
+const APP_NAME = "__APP_NAME__";
+const APP_VERSION = "__APP_VERSION__";
+
+function b64ToBytes(b64){
+  const bin = atob(b64);
+  const len = bin.length;
+  const a = new Uint8Array(len);
+  for(let i=0;i<len;i++) a[i]=bin.charCodeAt(i);
+  return a;
+}
+function bytesToB64(bytes){
+  let bin=""; const CH=0x8000;
+  for(let i=0;i<bytes.length;i+=CH){ bin += String.fromCharCode.apply(null, bytes.subarray(i,i+CH)); }
+  return btoa(bin);
+}
+function fmtSize(n){
+  if(n<1024) return n+" B";
+  if(n<1048576) return (n/1024).toFixed(1)+" KB";
+  if(n<1073741824) return (n/1048576).toFixed(2)+" MB";
+  return (n/1073741824).toFixed(2)+" GB";
+}
+let sz=null;
+let _cap=null;
+async function initEngine(){
+  if(sz) return sz;
+  const wasmBinary = b64ToBytes(WASM_B64);
+  sz = await window.SevenZip({ wasmBinary, noInitialRun:true,
+    print:x=>{ if(_cap) _cap.push(x); },
+    printErr:x=>{ if(_cap) _cap.push("ERR "+x); } });
+  return sz;
+}
+// 统一执行 7zz 命令：成功返回 {rc:0,out}，失败（callMain 抛异常）返回 {rc:-1,out,threw}
+function runCap(eng, args){
+  _cap=[];
+  let rc=0, threw=null;
+  try{ rc=eng.callMain(args); }catch(e){ threw=e; rc=(typeof e==="object"&&e&&"status"in e)?e.status:-1; }
+  const out=_cap.slice(); _cap=null;
+  return {rc, threw, out};
+}
+function writeFile(FS, path, data){
+  const parts = path.split("/");
+  let cur="";
+  for(let i=0;i<parts.length-1;i++){
+    if(parts[i]==="") continue;
+    const nxt = cur + "/" + parts[i];
+    try{ FS.mkdir(nxt); }catch(e){}
+    cur = nxt;
+  }
+  FS.writeFile(path, data);
+}
+function readAll(FS, root){
+  const out=[];
+  function walk(d){
+    for(const n of FS.readdir(d)){
+      if(n==="."||n==="..") continue;
+      const p = d==="/" ? "/"+n : d+"/"+n;
+      const st = FS.stat(p);
+      if(FS.isDir(st.mode)) walk(p);
+      else out.push({path:p, data:FS.readFile(p)});
+    }
+  }
+  walk(root);
+  return out;
+}
+function download(name, data, type){
+  const blob = new Blob([data], {type: type||"application/octet-stream"});
+  const url = URL.createObjectURL(blob);
+  const a=document.createElement("a"); a.href=url; a.download=name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 4000);
+}
+function safeName(n){ return n.replace(/[\\/:*?"<>|]/g,"_"); }
+
+// ---- 标签页 ----
+document.querySelectorAll(".tab").forEach(t=>{
+  t.onclick=()=>{
+    document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+    t.classList.add("active");
+    document.querySelectorAll("section").forEach(s=>s.classList.add("hidden"));
+    document.getElementById(t.dataset.t).classList.remove("hidden");
+  };
+});
+
+// ===== 压缩 =====
+let cFiles=[];
+function renderC(){
+  const el=document.getElementById("clist"); el.innerHTML="";
+  if(cFiles.length===0){ el.innerHTML='<div class="muted" style="padding:10px">尚未添加文件</div>'; return; }
+  cFiles.forEach((f,i)=>{
+    const it=document.createElement("div"); it.className="it";
+    it.innerHTML='<span class="nm">'+(f.rel||f.name)+'</span><span class="sz">'+fmtSize(f.size)+' <span class="x" data-i="'+i+'">✕</span></span>';
+    el.appendChild(it);
+  });
+  el.querySelectorAll(".x").forEach(x=>x.onclick=()=>{ cFiles.splice(+x.dataset.i,1); renderC(); });
+}
+async function addFiles(list){
+  for(const f of list){
+    cFiles.push({ name:f.name, rel:(f.webkitRelativePath && f.webkitRelativePath.includes("/")) ? f.webkitRelativePath : f.name, size:f.size, file:f });
+  }
+  renderC();
+}
+document.getElementById("pickFiles").onclick=()=>document.getElementById("filesC").click();
+document.getElementById("pickDir").onclick=()=>document.getElementById("dirC").click();
+document.getElementById("filesC").onchange=e=>addFiles(e.target.files);
+document.getElementById("dirC").onchange=e=>addFiles(e.target.files);
+document.getElementById("clearC").onclick=()=>{ cFiles=[]; renderC(); };
+const dC=document.getElementById("dropC");
+dC.onclick=()=>document.getElementById("filesC").click();
+["dragenter","dragover"].forEach(ev=>dC.addEventListener(ev,e=>{e.preventDefault();dC.classList.add("over");}));
+dC.addEventListener("dragleave",()=>dC.classList.remove("over"));
+dC.addEventListener("drop",async e=>{
+  e.preventDefault(); dC.classList.remove("over");
+  const items=e.dataTransfer.items;
+  if(items && items.length && items[0].webkitGetAsEntry){
+    const all=[];
+    async function walkEntry(entry, prefix){
+      if(entry.isFile){
+        await new Promise(res=>{ entry.file(f=>{ all.push({name:f.name, rel:prefix+f.name, size:f.size, file:f}); res(); }); });
+      }else if(entry.isDirectory){
+        const rd=entry.createReader();
+        const ents=await new Promise(res=>rd.readEntries(res));
+        for(const en of ents){ await walkEntry(en, prefix+entry.name+"/"); }
+      }
+    }
+    for(const it of items){ const en=it.webkitGetAsEntry(); if(en) await walkEntry(en,""); }
+    addFiles(all);
+  } else addFiles(e.dataTransfer.files);
+});
+
+document.getElementById("cformat").onchange=function(){
+  const single = this.value==="xz"||this.value==="gz"||this.value==="bz2";
+  document.getElementById("encOptWrap").style.opacity = this.value==="7z"||this.value==="zip" ? 1 : .5;
+};
+
+document.getElementById("doCompress").onclick=async function(){
+  if(cFiles.length===0){ alert("请先添加要压缩的文件"); return; }
+  const fmt=document.getElementById("cformat").value;
+  const lv=document.getElementById("clevel").value;
+  const p=document.getElementById("cpass").value;
+  const p2=document.getElementById("cpass2").value;
+  if(p||p2){ if(p!==p2){ alert("两次输入的密码不一致"); return; } }
+  const bar=document.getElementById("cbar"), st=document.getElementById("cstatus");
+  const log=document.getElementById("clog"); log.classList.remove("hidden"); log.textContent="";
+  this.disabled=true;
+  try{
+    st.textContent="正在初始化压缩引擎…"; bar.style.width="10%";
+    const eng=await initEngine(); const FS=eng.FS;
+    st.textContent="读取文件…";
+    const base="/work"; try{FS.rmdir(base);}catch(e){}
+    try{ FS.mkdir(base); }catch(e){}
+    let i=0;
+    for(const f of cFiles){
+      const buf=new Uint8Array(await f.file.arrayBuffer());
+      writeFile(FS, base+"/"+f.rel, buf);
+      i++; bar.style.width=Math.min(10+i/cFiles.length*40,50)+"%";
+    }
+    // 构造 7zz 命令
+    const stamp=Date.now();
+    const single = (fmt==="xz"||fmt==="gz"||fmt==="bz2");
+    const outName = "/out_"+st;
+    const args=[];
+    if(single){
+      if(cFiles.length!==1){
+        st.textContent="单文件格式（xz/gz/bz2）只能压一个文件；多文件请先打包为 tar，或改用 7z/zip。";
+        // 自动走 tar 管道：先打包再压缩
+        const tarName=base+"/_bundle.tar";
+        const targs=["a","-ttar",tarName,base+"/.",];
+        eng.callMain(targs);
+        const ext = fmt==="xz"?"xz":fmt==="gz"?"gz":"bz2";
+        const cargs=["a","-t"+ext,"-mx="+lv, outName+"."+ext, tarName];
+        if(p) cargs.push("-p"+p);
+        const rc=eng.callMain(cargs);
+        finishOne(cargs, outName+"."+ext);
+        return;
+      }
+      const ext = fmt;
+      const theFile = base+"/"+cFiles[0].rel;
+      args.push("a","-t"+ext,"-mx="+lv, outName+"."+ext, theFile);
+      if(p) args.push("-p"+p);
+      const rc=eng.callMain(args);
+      bar.style.width="90%";
+      const finalName=outName+"."+ext;
+      const data=FS.readFile(finalName);
+      const dn = safeName(cFiles[0].name)+"."+ext;
+      bar.style.width="100%"; st.textContent="完成，开始下载…";
+      download(dn, data);
+      log.textContent += "命令: 7zz "+args.join(" ")+"\n退出码: "+rc+"\n产物: "+dn+"  "+fmtSize(data.length)+"\n";
+    } else {
+      // 多文件容器
+      let ext, ttype;
+      if(fmt==="7z"){ext="7z";ttype="7z";}
+      else if(fmt==="zip"){ext="zip";ttype="zip";}
+      else if(fmt==="tgz"){ext="tar.gz";ttype="gzip";}
+      else if(fmt==="txz"){ext="tar.xz";ttype="xz";}
+      const finalOut=outName+"."+ext;
+      if(fmt==="tgz"||fmt==="txz"){
+        const tarName=base+"/_bundle.tar";
+        eng.callMain(["a","-ttar",tarName,base+"/."]);
+        const cargs=["a","-t"+ttype,"-mx="+lv,finalOut,tarName];
+        if(p) cargs.push("-p"+p);
+        const rc=eng.callMain(cargs);
+        emitContainer(finalOut, "archive."+ext, rc, cargs);
+      }else{
+        args.push("a","-t"+ttype,"-mx="+lv);
+        if(p){
+          args.push("-p"+p);
+          if(fmt==="7z"&&document.getElementById("chead").checked) args.push("-mhe=on");
+          if(fmt==="zip") args.push("-mem=AES256");
+        }
+        args.push(finalOut, base+"/.");
+        const rc=eng.callMain(args);
+        emitContainer(finalOut, "archive."+ext, rc, args);
+      }
+    }
+    function emitContainer(path, dn, rc, args){
+      const data=FS.readFile(path);
+      bar.style.width="100%"; st.textContent="完成，开始下载…";
+      download(dn, data);
+      log.textContent += "命令: 7zz "+args.join(" ")+"\n退出码: "+rc+"\n产物: "+dn+"  "+fmtSize(data.length)+"\n";
+    }
+    function finishOne(args, path){
+      const data=FS.readFile(path);
+      bar.style.width="100%"; st.textContent="完成，开始下载…";
+      const dn = safeName(cFiles[0].name)+"."+fmt;
+      download(dn, data);
+      log.textContent += "命令: 7zz "+args.join(" ")+"\n产物: "+dn+"  "+fmtSize(data.length)+"\n";
+    }
+  }catch(e){
+    st.textContent="出错："+e.message;
+    log.textContent += "异常: "+(e.stack||e)+"\n";
+  }finally{
+    this.disabled=false;
+  }
+};
+
+// ===== 打开 / 解压 =====
+let oBytes=null, oName="";
+const dO=document.getElementById("dropO");
+dO.onclick=()=>document.getElementById("fileO").click();
+document.getElementById("fileO").onchange=e=>loadArc(e.target.files[0]);
+["dragenter","dragover"].forEach(ev=>dO.addEventListener(ev,e=>{e.preventDefault();dO.classList.add("over");}));
+dO.addEventListener("dragleave",()=>dO.classList.remove("over"));
+dO.addEventListener("drop",e=>{e.preventDefault();dO.classList.remove("over"); if(e.dataTransfer.files[0]) loadArc(e.dataTransfer.files[0]);});
+
+async function loadArc(file){
+  document.getElementById("oname").textContent=file.name+"  "+fmtSize(file.size);
+  oBytes=new Uint8Array(await file.arrayBuffer()); oName=file.name;
+  const eng=await initEngine(); const FS=eng.FS;
+  const inP="/in_"+safeName(file.name);
+  FS.writeFile(inP, oBytes);
+  const r=runCap(eng, ["l","-slt","-ba",inP]);
+  const lines=r.out;
+  const entries=[]; let cur={};
+  for(const ln of lines){
+    if(ln.startsWith("Path = ")){ if(cur.Path) entries.push(cur); cur={Path:ln.slice(7)}; }
+    else if(ln.startsWith("Size = ")){ cur.Size=+ln.slice(7); }
+    else if(ln.startsWith("Folder = ")){ cur.Folder=ln.slice(7)==="+"||ln.slice(7)==="yes"; }
+  }
+  if(cur.Path) entries.push(cur);
+  const al=document.getElementById("alist"); al.innerHTML="";
+  window._arcPath=inP; window._arcEntries=entries;
+  window._singleName=null;
+  if(entries.length===0){
+    // 单流压缩（xz/gz/bz2）：从压缩包名去掉单流后缀，还原原始文件名
+    let base=file.name.replace(/\.(tar\.xz|tar\.gz)$/i,"");
+    base=base.replace(/\.(xz|gz|bz2|lzma|lz|tgz|txz)$/i,"");
+    if(/\.(tgz|txz)$/i.test(file.name)) base+=".tar";
+    window._singleName=base || file.name;
+    al.innerHTML='<div class="muted" style="padding:10px">该格式为单流压缩，无法列出内部文件，直接解压即可（还原文件名：'+window._singleName+'）。</div>';
+  }
+  entries.forEach((en,i)=>{
+    const d=document.createElement("div"); d.className="arcItem";
+    d.innerHTML='<input type="checkbox" checked data-i="'+i+'"><span class="nm" style="flex:1">'+en.Path+'</span><span class="sz">'+(en.Folder?"<文件夹>":fmtSize(en.Size||0))+'</span>';
+    al.appendChild(d);
+  });
+  document.getElementById("oPanel").classList.remove("hidden");
+}
+document.getElementById("selAll").onclick=()=>document.querySelectorAll("#alist input").forEach(x=>x.checked=true);
+document.getElementById("selNone").onclick=()=>document.querySelectorAll("#alist input").forEach(x=>x.checked=false);
+
+// files=null 全部解压；否则为选中的内部路径数组
+async function extractFiles(files){
+  const eng=await initEngine(); const FS=eng.FS;
+  const inP=window._arcPath;
+  let outDir="/ex_"+Date.now();
+  let args=["x","-y","-o"+outDir,inP];
+  if(files) args.push(...files);
+  let r=runCap(eng, args);
+  if(r.rc!==0){
+    const pass=prompt("该压缩包已加密，请输入密码：")||"";
+    if(!pass){ alert("解压已取消或文件损坏。"); return; }
+    outDir="/ex_"+Date.now()+"_p";
+    args=["x","-y","-p"+pass,"-o"+outDir,inP];
+    if(files) args.push(...files);
+    r=runCap(eng, args);
+  }
+  if(r.rc!==0){ alert("解压失败：密码错误或文件损坏。"); return; }
+  const got=readAll(FS, outDir);
+  if(got.length===0){ alert("解压完成但没有文件。"); return; }
+  if(got.length===1){
+    const dn = window._singleName ? window._singleName : got[0].path.split("/").pop();
+    download(safeName(dn), got[0].data);
+  }else{
+    const zbase="/dz_"+Date.now();
+    for(const f of got){ writeFile(FS, zbase+"/"+f.path.replace(outDir+"/",""), f.data); }
+    const zp="/dl_"+Date.now()+".zip";
+    runCap(eng, ["a","-tzip",zp,zbase+"/."]);
+    download(safeName(oName)+"_解压.zip", FS.readFile(zp));
+  }
+}
+document.getElementById("extractAll").onclick=()=>extractFiles(null);
+document.getElementById("extractSel").onclick=()=>{
+  const sel=[...document.querySelectorAll("#alist input")].map((x,i)=>x.checked?window._arcEntries[i].Path:null).filter(Boolean);
+  if(sel.length===0){ alert("请先勾选要解压的文件"); return; }
+  extractFiles(sel);
+};
+
+// ===== 自解压 HTML =====
+document.getElementById("doSfx").onclick=()=>document.getElementById("sfxArc").click();
+document.getElementById("sfxArc").onchange=async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const dataB64=bytesToB64(new Uint8Array(await f.arrayBuffer()));
+  const title=document.getElementById("sfxTitle").value||"自解压文件";
+  let engineJs=new TextDecoder().decode(b64ToBytes(ENGINE_JS_B64));
+  engineJs=engineJs.replace(/export default SevenZip;/, "window.SevenZip = SevenZip;");
+  const html=SFX_TEMPLATE
+    .split("__TITLE__").join(safeName(title))
+    .replace("__ARC__", safeName(f.name))
+    .replace("__ARC_NAME__", safeName(f.name))
+    .replace("__ENGINE_JS__", engineJs)
+    .replace("__WASM_COPY__", WASM_B64)
+    .replace("__DATA_B64__", dataB64);
+  download(safeName(title)+".html", html, "text/html");
+  document.getElementById("sfxStatus").textContent="已生成："+safeName(title)+".html（内嵌 "+fmtSize(f.size)+"）";
+};
+const SFX_TEMPLATE = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>__TITLE__</title>
+<style>body{font-family:"Microsoft YaHei",sans-serif;background:#0f1420;color:#e6ebf5;margin:0;padding:30px}
+.card{max-width:760px;margin:0 auto;background:#171e2e;border:1px solid #2a3550;border-radius:12px;padding:24px}
+button{background:#2f7de1;color:#fff;border:none;border-radius:8px;padding:11px 20px;cursor:pointer;font-size:14px}
+.muted{color:#93a0b8;font-size:13px}</style></head><body><div class="card">
+<h2>__TITLE__</h2><p class="muted">这是一个自解压文件，内嵌压缩包 __ARC__。点击下方按钮解压并下载。</p>
+<p><button id="goBtn">解压并下载</button></p>
+<div class="muted" id="st"></div></div>
+<script type="module">
+__ENGINE_JS__
+const WASM_ENGINE_B64="__WASM_COPY__";
+const DATA_B64="__DATA_B64__";
+const ARC_NAME="__ARC_NAME__";
+function b64ToBytes(b){const s=atob(b);const a=new Uint8Array(s.length);for(let i=0;i<s.length;i++)a[i]=s.charCodeAt(i);return a;}
+function run(eng,args){ try{ eng.callMain(args); return 0; }catch(e){ return (typeof e==="object"&&e&&"status"in e)?e.status:-1; } }
+async function go(){
+  document.getElementById("st").textContent="正在初始化引擎…";
+  let eng;
+  try{ eng=await window.SevenZip({wasmBinary:b64ToBytes(WASM_ENGINE_B64),noInitialRun:true}); }
+  catch(e){ document.getElementById("st").textContent="引擎初始化失败。"; return; }
+  const FS=eng.FS; const inP="/"+ARC_NAME; FS.writeFile(inP,b64ToBytes(DATA_B64));
+  const out="/out";
+  let rc=run(eng,["x","-y","-o"+out,inP]);
+  if(rc!==0){ const p=prompt("压缩包已加密，请输入密码："); if(p) rc=run(eng,["x","-y","-p"+p,"-o"+out,inP]); }
+  if(rc!==0){document.getElementById("st").textContent="解压失败：密码错误或文件损坏。";return;}
+  const files=[]; (function walk(d){for(const n of FS.readdir(d)){if(n==="."||n==="..")continue;const p=d==="/"?"/"+n:d+"/"+n;const s=FS.stat(p);if(FS.isDir(s.mode))walk(p);else files.push({p,data:FS.readFile(p)});}})(out);
+  if(files.length===1){const f=files[0];const b=new Blob([f.data]);const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=f.p.split("/").pop();a.click();}
+  else{const zb="/z";FS.mkdir(zb);for(const f of files){const parts=f.p.replace(out+"/","").split("/");let c="";for(let i=0;i<parts.length-1;i++){if(parts[i]){const n=c+"/"+parts[i];try{FS.mkdir(n);}catch(e){}c=n;}}FS.writeFile(zb+"/"+f.p.replace(out+"/",""),f.data);}
+    const zp="/out.zip";eng.callMain(["a","-tzip",zp,zb+"/."]);const zd=FS.readFile(zp);const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([zd]));a.download="解压文件.zip";a.click();}
+  document.getElementById("st").textContent="解压完成，已开始下载。";
+}
+document.getElementById("goBtn").onclick=()=>go();
+/*__SFX_AUTO__*/
+<\/script></body></html>`;
+
+// ===== 工具：校验 =====
+const dH=document.getElementById("dropHash");
+dH.onclick=()=>document.getElementById("fileHash").click();
+document.getElementById("fileHash").onchange=async e=>{
+  const f=e.target.files[0]; const buf=await f.arrayBuffer();
+  async function hex(alg){ const h=await crypto.subtle.digest(alg,buf); return [...new Uint8Array(h)].map(x=>x.toString(16).padStart(2,"0")).join(""); }
+  document.getElementById("hashOut").textContent =
+    f.name+"  "+fmtSize(f.size)+"\n\nMD5:    "+await hex("MD5")+"\nSHA-1:  "+await hex("SHA-1")+"\nSHA-256: "+await hex("SHA-256");
+};
+
+// ===== 工具：压缩率对比 =====
+document.getElementById("doCompare").onclick=()=>document.getElementById("fileCmp").click();
+document.getElementById("fileCmp").onchange=async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const out=document.getElementById("cmpOut"); out.classList.remove("hidden"); out.textContent="处理中…";
+  const eng=await initEngine(); const FS=eng.FS;
+  const base="/cmp"; try{FS.rmdir(base);}catch(x){} FS.mkdir(base);
+  FS.writeFile(base+"/f", new Uint8Array(await f.arrayBuffer()));
+  const rows=[];
+  for(const [t,ext] of [["xz","xz"],["7z","7z"],["zip","zip"]]){
+    for(const lv of [3,6,9]){
+      const o="/r_"+t+lv+"."+ext;
+      const t0=performance.now();
+      let rc; try{rc=eng.callMain(["a","-t"+t,"-mx="+lv,o,base+"/f"]);}catch(x){rc=x;}
+      const ms=Math.round(performance.now()-t0);
+      let sz=0; try{sz=FS.stat(o).size;}catch(x){}
+      rows.push((t+" L"+lv).padEnd(8)+fmtSize(sz).padStart(10)+"   "+ms+" ms");
+    }
+  }
+  out.textContent = f.name+"  原始 "+fmtSize(f.size)+"\n\n"+rows.join("\n");
+};
+
+// 预热引擎（不阻塞）
+initEngine().then(()=>{ /* 就绪 */ });
+</script>
+</body>
+</html>
