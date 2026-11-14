@@ -23,15 +23,15 @@ tools/html/test_extract.html
 tools/html/test_sfx.html
 tools/html/test_sfx_standalone.html
 
-# ---- 运行时业务数据（首次运行自动生成，勿上传）----
-server/data/feedback.log
-server/data/devices.log
-server/data/announcement.json
-server/data/polls.json
+# ---- 服务器端（不入库，本地目录保留）----
+server/
+tools/remote/
+
+# ---- 本地测试历史日志 ----
+xz-history.txt
 
 # ---- 日志 / 缓存 / 临时文件 ----
 *.log
-!server/data/.gitkeep
 __pycache__/
 *.pyc
 *.tmp
